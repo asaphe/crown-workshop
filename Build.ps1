@@ -5,7 +5,8 @@ $sdk = Join-Path $PSScriptRoot '.sdk'
 if ($RestoreSdk) {
     New-Item -ItemType Directory -Path $sdk -Force | Out-Null
     $archive = Join-Path $sdk 'webview2.zip'
-    Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/$version/microsoft.web.webview2.$version.nupkg" -OutFile $archive
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -UseBasicParsing "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/$version/microsoft.web.webview2.$version.nupkg" -OutFile $archive
     Expand-Archive -LiteralPath $archive -DestinationPath $sdk -Force
 }
 $core = Join-Path $sdk 'lib\net462\Microsoft.Web.WebView2.Core.dll'

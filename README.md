@@ -11,18 +11,24 @@ A local Windows save editor for **Defender of the Crown: The Legend Returns — 
 - Advanced fields for inspecting IDs and raw values.
 - Standalone WebView2 desktop window; no web server or network access required while editing.
 
-## Build and run
+## Download and run (Windows)
 
-Requires Windows x64, the .NET Framework compiler included with Windows, and the Microsoft Edge WebView2 Runtime. Install the runtime separately from Microsoft if it is missing.
+1. Choose **Code > Download ZIP** on GitHub, then **Extract all** in Windows.
+2. Open the extracted folder and double-click **Launch Crown Workshop.cmd**.
+3. On the first run, choose **Y** to download the Microsoft WebView2 SDK and prepare the editor. Later launches open the editor directly.
 
-In PowerShell:
+Keep the extracted folder together. Do not launch from inside the ZIP. The SDK and compiled files stay in `.sdk` and `build` inside this folder; no Python or system-wide SDK installation is needed. First-time setup needs internet access. Close the editor before replacing/updating its files.
+
+Requires Windows x64, the .NET Framework compiler included with Windows, and the Microsoft Edge WebView2 Runtime. If the runtime is missing, install it separately from Microsoft's [WebView2 download page](https://developer.microsoft.com/microsoft-edge/webview2/).
+
+### Manual build (developers)
 
 ```powershell
 .\Build.ps1 -RestoreSdk
 .\build\CrownWorkshop.exe
 ```
 
-The first command explicitly downloads Microsoft.Web.WebView2 1.0.4258.31 from NuGet into `.sdk`. Subsequent builds can use `Build.ps1` without the switch. Third-party SDK components retain their own license. HTML, CSS and JavaScript source live at the repository root and are copied into `build/web` during the build.
+This downloads Microsoft.Web.WebView2 1.0.4258.31 from NuGet. Later manual builds can omit `-RestoreSdk`. HTML, CSS and JavaScript source live at the repository root and are copied into `build/web` during the build. Third-party SDK components retain their own license.
 
 Game artwork, logos, extracted fonts, game DLLs, saves and generated binaries are not included. The public UI uses system font fallbacks and a plain gradient. An optional local `enum-labels.tsv` provides friendly enum labels; without it, stored values remain editable numerically. It is not required to parse a save.
 
