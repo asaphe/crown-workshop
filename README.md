@@ -1,0 +1,43 @@
+# Crown Workshop
+
+A local Windows save editor for **Defender of the Crown: The Legend Returns — Retro mode**. Unofficial and not affiliated with the game's developers or publisher.
+
+## Features
+
+- Player-first editing of gold, troops, character skills and existing saved values.
+- Opponents grouped by lord.
+- Territories contain land settings and their castle garrison; the home territory is marked.
+- One Changes tab, Undo, revert, export, automatic backups and save discovery.
+- Advanced fields for inspecting IDs and raw values.
+- Standalone WebView2 desktop window; no web server or network access required while editing.
+
+## Build and run
+
+Requires Windows x64, the .NET Framework compiler included with Windows, and the Microsoft Edge WebView2 Runtime. Install the runtime separately from Microsoft if it is missing.
+
+In PowerShell:
+
+```powershell
+.\Build.ps1 -RestoreSdk
+.\build\CrownWorkshop.exe
+```
+
+The first command explicitly downloads Microsoft.Web.WebView2 1.0.4258.31 from NuGet into `.sdk`. Subsequent builds can use `Build.ps1` without the switch. Third-party SDK components retain their own license. HTML, CSS and JavaScript source live at the repository root and are copied into `build/web` during the build.
+
+Game artwork, logos, extracted fonts, game DLLs, saves and generated binaries are not included. The public UI uses system font fallbacks and a plain gradient. An optional local `enum-labels.tsv` provides friendly enum labels; without it, stored values remain editable numerically. It is not required to parse a save.
+
+## Use
+
+Close the game before saving. The editor finds a single Retro save automatically, or use Open save. Retro is stored under `Classic/ClassicSave.sav` internally; this is not a claim of compatibility with the separately named modern Classic mode.
+
+Edits remain in memory until Save changes. Review all pending edits in Changes. Every overwrite creates a backup beside the destination in `CrownWorkshopBackups`. To restore, open a backup and export it to the desired save path. Existing files are backed up before replacement. Steam Cloud may subsequently replace local files.
+
+The editor blocks saving while the game is running and refuses to overwrite an opened file whose bytes have changed on disk. Account progression, modern Classic and Kingdom modes are not supported. Adding or removing entities is not supported. Some values may be recalculated by the game; arbitrary values are not guaranteed to produce valid gameplay.
+
+## Source and validation
+
+`CrownSave.cs` parses the binary save and preserves untouched bytes. It does not execute serialized objects. `Desktop.cs` contains the Windows host and editing session. `SessionTests.cs` exercises edits, validation, Undo, and model relationships using a supplied Retro save without writing it. `Tests.cs` is a deeper, fixture-specific parser suite; its known-player assertions require the original development fixture, which is intentionally not published. No automated in-game test is included.
+
+## License
+
+MIT; see LICENSE. Game names and third-party assets belong to their respective owners.

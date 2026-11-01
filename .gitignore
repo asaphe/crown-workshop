@@ -1,0 +1,12 @@
+.sdk/
+build/
+web/
+art/
+fonts/
+*.exe
+*.dll
+*.sav
+*.bak
+*.zip
+enum-labels.tsv
+CrownWorkshopBackups/
