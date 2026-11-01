@@ -4,3 +4,5 @@
 
 .cheat-note{font-size:13px;color:var(--muted);line-height:1.65;margin:0 0 20px;max-width:800px}
 .territory-note{color:var(--muted);font-size:13px;line-height:1.6}
+
+#savePicker{width:850px;max-width:90vw}.picker-actions{display:flex;gap:10px;margin:18px 0}.picker-actions select{background:var(--panel);color:var(--text);padding:8px;border:1px solid var(--line)}#saveList{max-height:48vh;overflow:auto}.save-choice{display:block;text-align:left;width:100%;margin:10px 0;padding:15px}.save-choice span,.save-choice small{display:block;margin-top:6px;color:var(--muted)}.save-choice small{overflow-wrap:anywhere;font-size:10px}

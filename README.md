@@ -1,6 +1,6 @@
 # Crown Workshop
 
-A local Windows save editor for **Defender of the Crown: The Legend Returns — Retro mode**. Unofficial and not affiliated with the game's developers or publisher.
+A local Windows save editor for **Defender of the Crown: The Legend Returns — Retro and Classic modes**. Unofficial and not affiliated with the game's developers or publisher.
 
 ## Features
 
@@ -34,11 +34,13 @@ Game artwork, logos, extracted fonts, game DLLs, saves and generated binaries ar
 
 ## Use
 
-Close the game before saving. The editor finds a single Retro save automatically, or use Open save. Retro is stored under `Classic/ClassicSave.sav` internally; this is not a claim of compatibility with the separately named modern Classic mode.
+Close the game before saving. Choose save lists Retro and Classic campaigns, including Classic named slots and autosaves. It excludes metadata and backups. Browse files opens other saves or backups. The mode is detected from save contents. Retro uses `Classic/ClassicSave.sav`; modern Classic uses the `Updated` folder. Classic garrisons appear inside their territories, even without a castle.
 
 Edits remain in memory until Save changes. Review all pending edits in Changes. Every overwrite creates a backup beside the destination in `CrownWorkshopBackups`. To restore, open a backup and export it to the desired save path. Existing files are backed up before replacement. Steam Cloud may subsequently replace local files.
 
-The editor blocks saving while the game is running and refuses to overwrite an opened file whose bytes have changed on disk. Account progression, modern Classic and Kingdom modes are not supported. Adding or removing entities is not supported. Some values may be recalculated by the game; arbitrary values are not guaranteed to produce valid gameplay.
+The editor blocks saving while the game is running and refuses to overwrite an opened file whose bytes have changed on disk. Account progression and Kingdom mode are not supported. Adding or removing entities is not supported. Some values may be recalculated by the game; arbitrary values are not guaranteed to produce valid gameplay.
+
+For Classic, edit an existing save slot and load that same slot in-game. The editor leaves save-list metadata unchanged; exported copies may not appear in that list. Classic support passed local parser and session checks and a manual in-game test. This does not validate every possible edit.
 
 ## Source and validation
 

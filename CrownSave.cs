@@ -36,6 +36,7 @@ public class Entity {
 public class Save {
     static Dictionary<string,Dictionary<string,string>> enumLabels=LoadEnums();
     static Dictionary<string,Dictionary<string,string>> LoadEnums(){var all=new Dictionary<string,Dictionary<string,string>>();string path=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"enum-labels.tsv");if(File.Exists(path))foreach(string line in File.ReadAllLines(path)){var a=line.Split('\t');if(a.Length!=3)continue;if(!all.ContainsKey(a[0]))all[a[0]]=new Dictionary<string,string>();all[a[0]][a[1]]=a[2];}return all;}
+    public string Mode;
     public byte[] Bytes;
     public Entry Root;
     public List<Field> Fields = new List<Field>();
@@ -50,8 +51,9 @@ public class Save {
         if(pos<bytes.Length && bytes[pos]==49) pos++;
         if(pos!=bytes.Length) throw new Exception("Unexpected trailing save data.");
         if(!Root.Type.StartsWith("Code.Common.Infrastructure.Progress.GameData.SavedGameData,")) throw new Exception("This is not a campaign save. Account progress is not supported.");
-        if(Root.Walk().Any(x=>x.Type.StartsWith("Code.Modes.Updated.") || x.Type.StartsWith("Code.Modes.Roguelike."))) throw new Exception("Only Retro campaign saves are supported.");
+        if(Root.Walk().Any(x=>x.Type.StartsWith("Code.Modes.Roguelike.") || (x.Value is string && ((string)x.Value).StartsWith("Code.Modes.Roguelike.")))) throw new Exception("Kingdom saves are not supported yet.");
         BuildFields();
+        Mode=Entities.Any(e=>e.Components.Keys.Any(k=>k.StartsWith("Code.Modes.Updated.")))?"Classic":"Retro";
     }
     void Need(int n) { if(n<0 || n>Bytes.Length-pos) throw new Exception("Truncated or invalid save at byte "+pos); }
     byte B() { Need(1); return Bytes[pos++]; }
@@ -125,7 +127,7 @@ public class Save {
         var entityNodes=new HashSet<Entry>(Entities.SelectMany(x=>x.Node.Walk()));
         foreach(var e in Root.Walk().Where(x=>!entityNodes.Contains(x)&&x.Children.Count==0&&x.Tag!=6&&x.Tag!=8)) AddField(e,"Campaign",PathOf(e,Root),PathOf(e,Root),e.Name);
         Fields=Fields.OrderBy(x=>x.Entry.Start).ToList();
-        if(Player==null)throw new Exception("Retro player entity not found.");
+        if(Player==null)throw new Exception("Player entity not found.");
     }
     void AddField(Entry e,string group,string name,string path,string component) {
         bool editable=e.Tag>=15&&e.Tag<=44;

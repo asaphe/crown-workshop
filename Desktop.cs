@@ -14,13 +14,14 @@ public class WorkshopSession {
     public string FilePath;
     Stack<Dictionary<Field,string>> undo=new Stack<Dictionary<Field,string>>();
     public void Load(string path){var s=new Save(File.ReadAllBytes(path));Save=s;FilePath=Path.GetFullPath(path);undo.Clear();}
-    public Entity Owner(Entity e){if(e.Has("Lord"))return e;int id=e.Number("OwnerId");if(id<0)id=e.Number("LordId");return Save.Entities.FirstOrDefault(x=>x.Has("Lord")&&x.Id==id)??Save.Entities.FirstOrDefault(x=>x.Has("Lord")&&(x.Number("CommanderId")==e.Id||x.Number("StorageId")==e.Id||x.Number("HomeCastleId")==e.Id));}
-    public string Role(Entity e){return e.Has("Lord")?"Character":e.Has("Commander")?"Army":e.Has("Storage")?"Treasury":e.Has("Castle")?"Castle":e.Has("Region")?"Territory":e.Has("OpponentComponent")?"Tournament":"Campaign";}
+    public Entity Owner(Entity e){if(e.Has("Lord"))return e;if(e.Has("Garrison")){var region=Save.Entities.FirstOrDefault(x=>x.Has("Region")&&x.Id==e.Number("RegionId"));if(region!=null)return Owner(region);}
+        int id=e.Number("OwnerId");if(id<0)id=e.Number("LordId");return Save.Entities.FirstOrDefault(x=>x.Has("Lord")&&x.Id==id)??Save.Entities.FirstOrDefault(x=>x.Has("Lord")&&(x.Number("CommanderId")==e.Id||x.Number("StorageId")==e.Id||x.Number("HomeCastleId")==e.Id));}
+    public string Role(Entity e){return e.Has("Lord")?"Character":e.Has("Commander")?"Army":e.Has("Storage")?"Treasury":e.Has("Castle")?"Castle":e.Has("Garrison")?"Garrison":e.Has("Region")?"Territory":e.Has("OpponentComponent")?"Tournament":"Campaign";}
     public object State(){
         if(Save==null)return new {loaded=false};
         var entities=Save.Entities.Select(e=>{var owner=Owner(e);return new {id=e.Id,name=e.Label,role=Role(e),owner=owner==null?-1:owner.Id,category=owner==Save.Player?"Player":owner!=null?"Opponents":(e.Has("Region")||e.Has("Castle"))?"Opponents":"Campaign"};}).ToArray();
         var map=Save.Entities.ToDictionary(e=>e.Label,e=>e);
-        return new {loaded=true,file=FilePath,name=Save.Player.Label.Replace(" (you)",""),player=Save.Player.Id,canUndo=undo.Count>0,entities=entities,
+        return new {loaded=true,mode=Save.Mode,file=FilePath,name=Save.Player.Label.Replace(" (you)",""),player=Save.Player.Id,canUndo=undo.Count>0,entities=entities,
             fields=Save.Fields.Select((f,i)=>new {id=i,entity=map.ContainsKey(f.Group)?map[f.Group].Id:-1,group=f.Group,name=f.Name,path=f.Path,kind=f.Kind,value=f.Pending,original=f.Original,changed=f.Changed,editable=f.Editable,advanced=f.Advanced,options=f.Options}).ToArray()};
     }
     public void Set(int id,string value,bool advanced){if(Save==null||id<0||id>=Save.Fields.Count)throw new Exception("Field not found.");var f=Save.Fields[id];if(!f.Editable||(f.Advanced&&!advanced))throw new Exception("Enable advanced mode to edit this field.");Save.Encode(f,value);if(f.Pending!=value){undo.Push(new Dictionary<Field,string>{{f,f.Pending}});f.Pending=value;}}
@@ -34,23 +35,34 @@ public class Desktop:Form {
         FormClosing+=(s,e)=>{if(allowClose||view.CoreWebView2==null)return;e.Cancel=true;if(!closePending){closePending=true;view.CoreWebView2.PostWebMessageAsJson("{\"event\":\"closeRequested\"}");}};
     }
     bool Discard(){return !session.Dirty||MessageBox.Show(this,"Discard unsaved edits?","Crown Workshop",MessageBoxButtons.YesNo,MessageBoxIcon.Question)==DialogResult.Yes;}
-    string ChooseFile(){using(var d=new OpenFileDialog{Filter="Retro saves and backups|*.sav;*.bak|All files|*.*",Title="Open Retro save"})return d.ShowDialog(this)==DialogResult.OK?d.FileName:null;}
-    string Find(){string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),@"AppData\LocalLow\Black Tower Basement\Defender of the Crown Collection");if(!Directory.Exists(root))return null;var files=Directory.GetFiles(root,"ClassicSave.sav",SearchOption.AllDirectories).Where(p=>Path.GetFileName(Path.GetDirectoryName(p))=="Classic").ToArray();return files.Length==1?files[0]:null;}
+    string ChooseFile(){using(var d=new OpenFileDialog{Filter="Campaign saves and backups|*.sav;*.bak|All files|*.*",Title="Open campaign save"})return d.ShowDialog(this)==DialogResult.OK?d.FileName:null;}
+    public class SaveChoice { public string path,mode,name,account,modified; public bool autosave; }
+    public static List<SaveChoice> Discover(string root){
+        var list=new List<SaveChoice>();if(!Directory.Exists(root))return list;
+        foreach(var account in Directory.GetDirectories(root))foreach(var folder in new[]{"Classic","Updated"}){
+            string dir=Path.Combine(account,folder);if(!Directory.Exists(dir))continue;
+            foreach(var path in Directory.GetFiles(dir,"*.sav")){
+                string name=Path.GetFileName(path);if(name.Equals("metadata.sav",StringComparison.OrdinalIgnoreCase))continue;
+                if(folder=="Classic"&&!name.Equals("ClassicSave.sav",StringComparison.OrdinalIgnoreCase))continue;
+                try{var save=new Save(File.ReadAllBytes(path));list.Add(new SaveChoice{path=path,mode=save.Mode,name=Path.GetFileNameWithoutExtension(path),account=Path.GetFileName(account),modified=File.GetLastWriteTime(path).ToString("yyyy-MM-dd HH:mm"),autosave=name.Equals("__autosave__.sav",StringComparison.OrdinalIgnoreCase)});}catch(IOException){}catch(UnauthorizedAccessException){}catch(Exception){}
+            }
+        }
+        return list.OrderBy(x=>x.mode).ThenBy(x=>x.autosave).ThenBy(x=>x.name).ToList();
+    }
+    List<SaveChoice> Choices(){return Discover(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),@"AppData\LocalLow\Black Tower Basement\Defender of the Crown Collection"));}
     void Message(object sender,CoreWebView2WebMessageReceivedEventArgs e){
         if(!e.Source.StartsWith("https://crown.local/",StringComparison.Ordinal))return;
         object rid=null;
         try{var m=json.Deserialize<Dictionary<string,object>>(e.WebMessageAsJson);rid=m["id"];string action=(string)m["action"];object result=null;
             switch(action){
-                case "init":if(session.Save==null){string p=Find();if(p!=null)session.Load(p);}result=session.State();break;
-                case "find":{
-                    string p=Find();
-                    if(p!=null&&string.Equals(Path.GetFullPath(p),session.FilePath,StringComparison.OrdinalIgnoreCase)){
-                        result=new {message="Found your Retro save. It is already open; your edits have been kept.\n"+p,state=session.State()};break;
-                    }
-                    if(p==null)MessageBox.Show(this,"Could not identify a single Retro save automatically. Choose the save you want to open.","Find my save",MessageBoxButtons.OK,MessageBoxIcon.Information);
-                    if(p==null)p=ChooseFile();
-                    if(p==null||!Discard()){result=new {cancelled=true,state=session.State()};break;}
-                    session.Load(p);result=new {message="Found and opened your Retro save.\n"+p,state=session.State()};break;
+                case "init":result=session.State();break;
+                case "find":result=Choices();break;
+                case "selectSave":{
+                    string path=(string)m["path"];
+                    if(!Choices().Any(x=>string.Equals(x.path,path,StringComparison.OrdinalIgnoreCase)))throw new Exception("This save is no longer available. Refresh the save list.");
+                    if(string.Equals(path,session.FilePath,StringComparison.OrdinalIgnoreCase)){result=new {message="This save is already open; your edits have been kept.",state=session.State()};break;}
+                    if(!Discard()){result=new {cancelled=true,state=session.State()};break;}
+                    session.Load(path);result=new {state=session.State()};break;
                 }
                 case "open":{
                     string p=ChooseFile();if(p==null||!Discard()){result=new {cancelled=true,state=session.State()};break;}
@@ -61,7 +73,7 @@ public class Desktop:Form {
                 case "revert":session.Revert();result=session.State();break;
                 case "save":case "export":{
                     if(session.Save==null)throw new Exception("Open a save first.");string target=session.FilePath;bool export=action=="export";
-                    if(export){using(var d=new SaveFileDialog{Filter="Retro save|*.sav",FileName="ClassicSave.edited.sav",InitialDirectory=Path.GetDirectoryName(target),OverwritePrompt=true}){if(d.ShowDialog(this)!=DialogResult.OK){result=new {cancelled=true,state=session.State()};break;}target=d.FileName;}}
+                    if(export){using(var d=new SaveFileDialog{Filter="Campaign save|*.sav",FileName=Path.GetFileNameWithoutExtension(target)+".edited.sav",InitialDirectory=Path.GetDirectoryName(target),OverwritePrompt=true}){if(d.ShowDialog(this)!=DialogResult.OK){result=new {cancelled=true,state=session.State()};break;}target=d.FileName;}}
                     if(!export&&!session.Dirty){result=new {message="No changes to save.",state=session.State()};break;}
                     var edits=session.Save.Fields.Where(f=>f.Changed).ToList();string summary=string.Join("\n",edits.Take(10).Select(f=>f.Name+": "+f.Original+" → "+f.Pending));if(edits.Count>10)summary+="\n… and "+(edits.Count-10)+" more.";
                     if(MessageBox.Show(this,(export?"Export":"Save")+" "+edits.Count+" changes?\n\n"+summary+"\n\n"+target+"\n\nAn existing file will be backed up first.","Review changes",MessageBoxButtons.OKCancel,MessageBoxIcon.Question)!=DialogResult.OK){result=new {cancelled=true,state=session.State()};break;}
